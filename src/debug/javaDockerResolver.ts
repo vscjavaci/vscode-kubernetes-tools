@@ -6,7 +6,7 @@ import { shell } from '../shell';
 
 const defaultJavaDebugPort = "5005";
 const defaultJavaAppPort = "9000";
-const defaultJavaDebugOpts = `-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=${defaultJavaDebugPort},quiet=y`;
+const defaultJavaDebugOpts = `-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=${defaultJavaDebugPort},quiet=y`;
 const javaDebugOptsRegExp = /(-agentlib|-Xrunjdwp):\S*(address=[^\s,]+)/i;
 const fullJavaDebugOptsRegExp = /^java\s+.*(-agentlib|-Xrunjdwp):\S*(address=[^\s,]+)\S*/i;
 

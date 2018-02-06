@@ -133,19 +133,19 @@ export function activate(context) {
         vscode.workspace.registerTextDocumentContentProvider(helm.INSPECT_SCHEME, inspectProvider),
 
         // Completion providers
-        vscode.languages.registerCompletionItemProvider(completionFilter, completionProvider),
-
+        //vscode.languages.registerCompletionItemProvider(completionFilter, completionProvider),
+        
         // Hover providers
         vscode.languages.registerHoverProvider(
             { language: 'json', scheme: 'file' },
             { provideHover: provideHoverJson }
         ),
-        vscode.languages.registerHoverProvider(
-            { language: 'yaml', scheme: 'file' },
-            { provideHover: provideHoverYaml }
-        ),
-        vscode.languages.registerHoverProvider(HELM_MODE, new HelmTemplateHoverProvider()),
-
+        // vscode.languages.registerHoverProvider(
+        //     { language: 'yaml', scheme: 'file' },
+        //     { provideHover: provideHoverYaml }
+        // ),
+        // vscode.languages.registerHoverProvider(HELM_MODE, new HelmTemplateHoverProvider()),
+        
         // Tree data providers
         vscode.window.registerTreeDataProvider('extension.vsKubernetesExplorer', treeProvider),
 

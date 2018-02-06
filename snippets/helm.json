@@ -41,13 +41,8 @@
   ],
     "description": "Create a Deployment manifest"
   },
-  "ports":{
-    "prefix": "ports",
-    "description": "ports in services",
-    "body": "ports:\n- name: ${name: Port Name}\n  port: ${port: Port}\n  targetPort: ${target: Target port}"
-  },
   "Service": {
-    "prefix": "service",
+    "prefix": "Service",
     "description": "template for a complete kubernetes service",
     "body": [     
     "kind: Service",

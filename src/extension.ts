@@ -39,6 +39,7 @@ import { HelmTemplatePreviewDocumentProvider, HelmInspectDocumentProvider } from
 import { HelmTemplateCompletionProvider } from './helm.completionProvider';
 import { Reporter } from './telemetry';
 import * as telemetry from './telemetry-helper';
+import { LanguageClient, LanguageClientOptions, SettingMonitor, ServerOptions, TransportKind, NotificationType } from 'vscode-languageclient';
 
 import { DebugService } from './debug/debugService';
 import { DockerfileParser } from './debug/dockerfileParser';
@@ -50,6 +51,14 @@ const kubectl = kubectlCreate(host, fs, shell);
 const draft = draftCreate(host, fs, shell);
 const configureFromClusterUI = configureFromCluster.uiProvider(fs, shell);
 const createClusterUI = createCluster.uiProvider(fs, shell);
+export interface ISchemaAssociations {
+	[pattern: string]: string[];
+}
+
+namespace SchemaAssociationNotification {
+	export const type: NotificationType<ISchemaAssociations, any> = new NotificationType('json/schemaAssociations');
+}
+
 const debugService = new DebugService(kubectl);
 const deleteMessageItems: vscode.MessageItem[] = [
     {
@@ -159,7 +168,47 @@ export function activate(context) {
         // Telemetry
         registerTelemetry(context)
     ];
+    try {
+        let serverModule = path.join(__dirname, '../../yaml-language-server/src/server.js');
+        if (fs.existsSync(serverModule)) {
+            // The debug options for the server
+            let debugOptions = { execArgv: ["--nolazy", "--inspect=6009"] };
+                    
+            // If the extension is launched in debug mode then the debug server options are used
+            // Otherwise the run options are used
+            let serverOptions: ServerOptions = {
+                run : { module: serverModule, transport: TransportKind.ipc},
+                debug: { module: serverModule, transport: TransportKind.ipc, options: debugOptions }
+            }
 
+            let clientOptions: LanguageClientOptions = {
+                // Register the server for plain text documents
+                documentSelector: [{scheme: 'file', language: 'yaml'}],
+                synchronize: {
+                    configurationSection: 'yaml',
+                    // Notify the server about file changes to '.clientrc files contain in the workspace
+                    fileEvents: vscode.workspace.createFileSystemWatcher('**/*.yaml')
+                }
+            }
+
+            let client = new LanguageClient('yaml', 'Yaml Support', serverOptions, clientOptions); 
+            let disposable = client.start();
+
+            context.subscriptions.push(disposable);
+
+            client.onReady().then(() => {
+                client.sendNotification(SchemaAssociationNotification.type, getSchemaAssociation(context));
+            });
+        }
+    } catch (e) {
+        console.log('Cannot start yaml languange server.');
+    }
+    
+
+	vscode.languages.setLanguageConfiguration('yaml', {
+		wordPattern: /("(?:[^\\\"]*(?:\\.)?)*"?)|[^\s{}\[\],:]+/
+	});
+    
     // On save, refresh the Helm YAML preview.
     vscode.workspace.onDidSaveTextDocument((e: vscode.TextDocument) => {
         if (!editorIsActive()) {
@@ -1401,4 +1450,38 @@ async function execDraftUp() {
 function editorIsActive(): boolean {
     // force type coercion
     return (vscode.window.activeTextEditor) ? true : false;
+}
+
+
+function getSchemaAssociation(context: vscode.ExtensionContext): ISchemaAssociations {
+	let associations: ISchemaAssociations = {};
+	vscode.extensions.all.forEach(extension => {
+		let packageJSON = extension.packageJSON;
+		if (packageJSON && packageJSON.contributes && packageJSON.contributes.yamlValidation) {
+			let yamlValidation = packageJSON.contributes.yamlValidation;
+			if (Array.isArray(yamlValidation)) {
+				yamlValidation.forEach(jv => {
+					let { fileMatch, url } = jv;
+					if (fileMatch && url) {
+						if (url[0] === '.' && url[1] === '/') {
+							url = vscode.Uri.file(path.join(extension.extensionPath, url)).toString();
+						}
+						if (fileMatch[0] === '%') {
+							fileMatch = fileMatch.replace(/%APP_SETTINGS_HOME%/, '/User');
+							fileMatch = fileMatch.replace(/%APP_WORKSPACES_HOME%/, '/Workspaces');
+						} else if (fileMatch.charAt(0) !== '/' && !fileMatch.match(/\w+:\/\//)) {
+							fileMatch = '/' + fileMatch;
+						}
+						let association = associations[fileMatch];
+						if (!association) {
+							association = [];
+							associations[fileMatch] = association;
+						}
+						association.push(url);
+					}
+				});
+			}
+		}
+	});
+	return associations;
 }

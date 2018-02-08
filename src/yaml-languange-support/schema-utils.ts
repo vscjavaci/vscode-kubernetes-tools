@@ -11,7 +11,7 @@ export function splitLines(text) {
  * A very easy utility function for decides whether the text is support to be a kubernetes yaml file, further
  * implementations is needed to be more precise on the result rather than the regex test.
  */
-export function isKuberneteYamlFile(text) {
+export function isKubernetesYamlFile(text) {
     return !!(/^kind\s*\:/g.exec(text) ||
         /[^a-zA-Z]kind\s*\:/g.exec(text) ||
         /^apiVersion\s*\:/g.exec(text) ||
